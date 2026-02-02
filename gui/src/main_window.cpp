@@ -650,7 +650,7 @@ void MainWindow::metricsFinished(int exitCode, QProcess::ExitStatus status) {
 }
 
 void MainWindow::parseMetricsOutput(const QString &text) {
-    const auto lines = text.split(n, Qt::SkipEmptyParts);
+    const auto lines = text.split('\n', Qt::SkipEmptyParts);
     for (const auto &line : lines) {
         const int idx = line.indexOf(":");
         if (idx <= 0) continue;
