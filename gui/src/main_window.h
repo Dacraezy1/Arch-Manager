@@ -1,12 +1,12 @@
 #pragma once
 
 #include <QMainWindow>
+#include <QProcess>
 
 class QPlainTextEdit;
 class QLineEdit;
 class QPushButton;
 class QLabel;
-class QProcess;
 class QTabWidget;
 class QTimer;
 class QSpinBox;
