@@ -1,0 +1,13 @@
+pub mod aur;
+pub mod disks;
+pub mod hardware;
+pub mod health;
+pub mod logs;
+pub mod network;
+pub mod news;
+pub mod pacman;
+pub mod snapshots;
+pub mod systemd;
+pub mod updates;
+pub mod users;
+pub mod metrics;

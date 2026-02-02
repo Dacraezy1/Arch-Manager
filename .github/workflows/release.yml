@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Qt6
+        run: sudo apt-get update && sudo apt-get install -y qt6-base-dev
+
+      - name: Build CLI
+        run: cargo build --release
+
+      - name: Build GUI
+        run: |
+          cd gui
+          cmake -S . -B build
+          cmake --build build
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp target/release/arch-manager dist/
+          cp gui/build/arch-manager-gui dist/
+          tar -czf dist/arch-manager-linux-x86_64.tar.gz -C dist arch-manager arch-manager-gui
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch-manager-linux-x86_64
+          path: dist/arch-manager-linux-x86_64.tar.gz
+
+      - name: Release
+        if: startsWith(github.ref, "refs/tags/")
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/arch-manager-linux-x86_64.tar.gz
