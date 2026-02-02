@@ -10,18 +10,31 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    #[command(subcommand)]
     Pacman(PacmanCmd),
+    #[command(subcommand)]
     Aur(AurCmd),
+    #[command(subcommand)]
     Systemd(SystemdCmd),
+    #[command(subcommand)]
     Users(UsersCmd),
+    #[command(subcommand)]
     Network(NetworkCmd),
+    #[command(subcommand)]
     Logs(LogsCmd),
+    #[command(subcommand)]
     Hardware(HardwareCmd),
+    #[command(subcommand)]
     Disks(DisksCmd),
+    #[command(subcommand)]
     Snapshots(SnapshotsCmd),
+    #[command(subcommand)]
     Health(HealthCmd),
+    #[command(subcommand)]
     Updates(UpdatesCmd),
+    #[command(subcommand)]
     News(NewsCmd),
+    #[command(subcommand)]
     Metrics(MetricsCmd),
 }
 
