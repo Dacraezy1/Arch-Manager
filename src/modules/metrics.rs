@@ -1,10 +1,9 @@
 use crate::cli::MetricsCmd;
 use crate::error::AppResult;
 use crate::utils::cmd::{output, require_cmd, run};
-use crate::utils::output::{info, warn};
 use std::fs;
 
-pub fn handle(cmd: MetricsCmd) -> AppResult<()> {
+pub fn handle(cmd: MetricsCmd) -> AppResult<String> {
     match cmd {
         MetricsCmd::All => all(),
         MetricsCmd::Ram => ram(),
@@ -16,18 +15,18 @@ pub fn handle(cmd: MetricsCmd) -> AppResult<()> {
     }
 }
 
-fn all() -> AppResult<()> {
-    println!("RAM: {}", ram_value()?);
-    println!("CPU_TEMP: {}", cpu_temp_value()?);
-    println!("GPU: {}", gpu_value()?);
-    println!("BATTERY: {}", battery_value()?);
-    println!("LOAD: {}", load_value()?);
-    println!("UPTIME: {}", uptime_value()?);
-    Ok(())
+fn all() -> AppResult<String> {
+    let mut out = String::new();
+    out.push_str(&format!("RAM: {}\n", ram_value()?));
+    out.push_str(&format!("CPU_TEMP: {}\n", cpu_temp_value()?));
+    out.push_str(&format!("GPU: {}\n", gpu_value()?));
+    out.push_str(&format!("BATTERY: {}\n", battery_value()?));
+    out.push_str(&format!("LOAD: {}\n", load_value()?));
+    out.push_str(&format!("UPTIME: {}\n", uptime_value()?));
+    Ok(out)
 }
 
-fn ram() -> AppResult<()> {
-    info("RAM usage");
+fn ram() -> AppResult<String> {
     run("free", &["-h"])
 }
 
@@ -45,9 +44,10 @@ fn ram_value() -> AppResult<String> {
     Ok("unknown".to_string())
 }
 
-fn cpu_temp() -> AppResult<()> {
-    info("CPU temperature");
-    require_cmd("sensors")?;
+fn cpu_temp() -> AppResult<String> {
+    if require_cmd("sensors").is_err() {
+        return Ok("sensors not installed".to_string());
+    }
     run("sensors", &[])
 }
 
@@ -65,15 +65,13 @@ fn cpu_temp_value() -> AppResult<String> {
     Ok("unknown".to_string())
 }
 
-fn gpu() -> AppResult<()> {
-    info("GPU usage");
+fn gpu() -> AppResult<String> {
     if require_cmd("nvidia-smi").is_ok() {
         run("nvidia-smi", &["--query-gpu=utilization.gpu,temperature.gpu", "--format=csv,noheader"])
     } else if require_cmd("rocm-smi").is_ok() {
         run("rocm-smi", &["--showuse"])
     } else {
-        warn("No supported GPU monitor found (nvidia-smi or rocm-smi).");
-        Ok(())
+        Ok("No supported GPU monitor found.".to_string())
     }
 }
 
@@ -106,11 +104,9 @@ fn gpu_value() -> AppResult<String> {
     Ok("unavailable".to_string())
 }
 
-fn battery() -> AppResult<()> {
-    info("Battery health");
+fn battery() -> AppResult<String> {
     if require_cmd("upower").is_err() {
-        warn("upower not installed.");
-        return Ok(());
+        return Ok("upower not installed".to_string());
     }
 
     let out = output("upower", &["-e"])?;
@@ -120,8 +116,7 @@ fn battery() -> AppResult<()> {
     if let Some(dev) = device {
         run("upower", &["-i", dev])
     } else {
-        warn("No battery detected.");
-        Ok(())
+        Ok("No battery detected.".to_string())
     }
 }
 
@@ -158,8 +153,7 @@ fn battery_value() -> AppResult<String> {
     Ok("unknown".to_string())
 }
 
-fn load() -> AppResult<()> {
-    info("System load");
+fn load() -> AppResult<String> {
     run("uptime", &[])
 }
 
@@ -173,8 +167,7 @@ fn load_value() -> AppResult<String> {
     Ok("unknown".to_string())
 }
 
-fn uptime() -> AppResult<()> {
-    info("Uptime");
+fn uptime() -> AppResult<String> {
     run("uptime", &["-p"])
 }
 

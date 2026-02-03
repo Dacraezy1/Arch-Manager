@@ -2,7 +2,7 @@ use crate::cli::HardwareCmd;
 use crate::error::AppResult;
 use crate::utils::cmd::run;
 
-pub fn handle(cmd: HardwareCmd) -> AppResult<()> {
+pub fn handle(cmd: HardwareCmd) -> AppResult<String> {
     match cmd {
         HardwareCmd::Cpu => run("lscpu", &[]),
         HardwareCmd::Mem => run("free", &["-h"]),

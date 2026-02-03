@@ -1,71 +1,83 @@
 use crate::cli::HealthCmd;
 use crate::error::AppResult;
 use crate::modules::{news, updates};
-use crate::utils::cmd::{output, run};
-use crate::utils::output::{info, ok, warn};
+use crate::utils::cmd::run;
 
-pub fn handle(cmd: HealthCmd) -> AppResult<()> {
+pub fn handle(cmd: HealthCmd) -> AppResult<String> {
+    let mut output = String::new();
+
     match cmd {
-        HealthCmd::Summary => summary(),
-        HealthCmd::Full => full(),
-        HealthCmd::Services => services(),
-        HealthCmd::Disk => disk(),
-        HealthCmd::Memory => memory(),
-        HealthCmd::Cpu => cpu(),
-        HealthCmd::Kernel => kernel(),
+        HealthCmd::Summary => {
+            output.push_str(&summary()?);
+        }
+        HealthCmd::Full => {
+            output.push_str(&full()?);
+        }
+        HealthCmd::Services => {
+            output.push_str(&services()?);
+        }
+        HealthCmd::Disk => {
+            output.push_str(&disk()?);
+        }
+        HealthCmd::Memory => {
+            output.push_str(&memory()?);
+        }
+        HealthCmd::Cpu => {
+            output.push_str(&cpu()?);
+        }
+        HealthCmd::Kernel => {
+            output.push_str(&kernel()?);
+        }
     }
+
+    Ok(output)
 }
 
-fn summary() -> AppResult<()> {
-    info("System Health Summary");
-    kernel()?;
-    disk()?;
-    memory()?;
-    services()?;
-    Ok(())
+fn summary() -> AppResult<String> {
+    let mut out = String::new();
+    out.push_str(&kernel()?);
+    out.push_str(&disk()?);
+    out.push_str(&memory()?);
+    out.push_str(&services()?);
+    Ok(out)
 }
 
-fn full() -> AppResult<()> {
-    summary()?;
-    info("Package Updates");
-    updates::check_updates(false)?;
-    info("Arch News");
-    news::latest()?;
-    Ok(())
+fn full() -> AppResult<String> {
+    let mut out = String::new();
+    out.push_str(&summary()?);
+    out.push_str("\nPackage Updates:\n");
+    out.push_str(&updates::check_updates(false)?);
+    out.push_str("\nArch News:\n");
+    out.push_str(&news::latest()?);
+    Ok(out)
 }
 
-fn services() -> AppResult<()> {
-    info("Failed services");
-    let out = output("systemctl", &["--failed"])?;
+fn services() -> AppResult<String> {
+    let out = crate::utils::cmd::output("systemctl", &["--failed"])?;
     if out.status.success() {
-        let text = String::from_utf8_lossy(&out.stdout);
+        let text = String::from_utf8_lossy(&out.stdout).to_string();
         if text.lines().count() <= 1 {
-            ok("No failed services.");
+            Ok("No failed services.\n".into())
         } else {
-            println!("{text}");
+            Ok(format!("{text}\n"))
         }
     } else {
-        warn("systemctl --failed returned error.");
+        Ok("systemctl --failed returned error.\n".into())
     }
-    Ok(())
 }
 
-fn disk() -> AppResult<()> {
-    info("Disk usage");
+fn disk() -> AppResult<String> {
     run("df", &["-h"])
 }
 
-fn memory() -> AppResult<()> {
-    info("Memory usage");
+fn memory() -> AppResult<String> {
     run("free", &["-h"])
 }
 
-fn cpu() -> AppResult<()> {
-    info("CPU info");
+fn cpu() -> AppResult<String> {
     run("lscpu", &[])
 }
 
-fn kernel() -> AppResult<()> {
-    info("Kernel");
+fn kernel() -> AppResult<String> {
     run("uname", &["-a"])
 }

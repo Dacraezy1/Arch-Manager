@@ -1,6 +1,5 @@
 use crate::cli::NewsCmd;
 use crate::error::{AppError, AppResult};
-use crate::utils::output::{info, warn};
 use reqwest::blocking::Client;
 use serde::Deserialize;
 use std::time::Duration;
@@ -16,13 +15,13 @@ struct Item {
     url: String,
 }
 
-pub fn handle(cmd: NewsCmd) -> AppResult<()> {
+pub fn handle(cmd: NewsCmd) -> AppResult<String> {
     match cmd {
         NewsCmd::Latest => latest(),
     }
 }
 
-pub fn latest() -> AppResult<()> {
+pub fn latest() -> AppResult<String> {
     let client = Client::builder()
         .timeout(Duration::from_secs(10))
         .build()
@@ -34,27 +33,21 @@ pub fn latest() -> AppResult<()> {
         .map_err(|e| AppError::Network(e.to_string()))?;
 
     if !resp.status().is_success() {
-        return Err(AppError::Network(format!(
-            "HTTP {}",
-            resp.status()
-        )));
+        return Err(AppError::Network(format!("HTTP {}", resp.status())));
     }
 
     let text = resp.text().map_err(|e| AppError::Network(e.to_string()))?;
 
     let feed: Feed = match serde_xml_rs::from_str(&text) {
         Ok(f) => f,
-        Err(_) => {
-            warn("Failed to parse Arch news feed.");
-            return Ok(());
-        }
+        Err(_) => return Ok("Failed to parse Arch news feed.".to_string()),
     };
 
-    info("Latest Arch News:");
+    let mut output = String::new();
+    output.push_str("Latest Arch News:\n");
     for item in feed.items.iter().take(10) {
-        println!("- {}", item.title);
-        println!("  {}", item.url);
+        output.push_str(&format!("- {}\n  {}\n", item.title, item.url));
     }
 
-    Ok(())
+    Ok(output)
 }
