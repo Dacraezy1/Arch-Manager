@@ -40,22 +40,48 @@ void MainWindow::buildUi() {
 
     ramLabel_ = new QLabel("RAM: —", metricsBox);
     cpuTempLabel_ = new QLabel("CPU Temp: —", metricsBox);
+    cpuUsageLabel_ = new QLabel("CPU Usage: —", metricsBox);
     gpuLabel_ = new QLabel("GPU: —", metricsBox);
+    gpuTempLabel_ = new QLabel("GPU Temp: —", metricsBox);
+    gpuUsageLabel_ = new QLabel("GPU Usage: —", metricsBox);
     batteryLabel_ = new QLabel("Battery: —", metricsBox);
+    batteryHealthLabel_ = new QLabel("Battery Health: —", metricsBox);
     loadLabel_ = new QLabel("Load: —", metricsBox);
+    memUsageLabel_ = new QLabel("Memory Usage: —", metricsBox);
+    netStatusLabel_ = new QLabel("Network: —", metricsBox);
+    netIpLabel_ = new QLabel("IP: —", metricsBox);
+    netTrafficLabel_ = new QLabel("Traffic: —", metricsBox);
+    orphansLabel_ = new QLabel("Orphans: —", metricsBox);
     uptimeLabel_ = new QLabel("Uptime: —", metricsBox);
 
     metricsLayout->addWidget(ramLabel_, 0, 0);
     metricsLayout->addWidget(cpuTempLabel_, 0, 1);
-    metricsLayout->addWidget(gpuLabel_, 1, 0);
-    metricsLayout->addWidget(batteryLabel_, 1, 1);
-    metricsLayout->addWidget(loadLabel_, 2, 0);
-    metricsLayout->addWidget(uptimeLabel_, 2, 1);
+    metricsLayout->addWidget(cpuUsageLabel_, 1, 0);
+    metricsLayout->addWidget(gpuLabel_, 1, 1);
+    metricsLayout->addWidget(gpuTempLabel_, 2, 0);
+    metricsLayout->addWidget(gpuUsageLabel_, 2, 1);
+    metricsLayout->addWidget(batteryLabel_, 3, 0);
+    metricsLayout->addWidget(batteryHealthLabel_, 3, 1);
+    metricsLayout->addWidget(loadLabel_, 4, 0);
+    metricsLayout->addWidget(memUsageLabel_, 4, 1);
+    metricsLayout->addWidget(netStatusLabel_, 5, 0);
+    metricsLayout->addWidget(netIpLabel_, 5, 1);
+    metricsLayout->addWidget(netTrafficLabel_, 6, 0);
+    metricsLayout->addWidget(orphansLabel_, 6, 1);
+    metricsLayout->addWidget(uptimeLabel_, 7, 0);
 
     auto *refreshMetricsBtn = new QPushButton("Refresh Metrics", metricsBox);
-    metricsLayout->addWidget(refreshMetricsBtn, 3, 0, 1, 2);
+    metricsLayout->addWidget(refreshMetricsBtn, 8, 0, 1, 2);
+
+    auto *processBox = new QGroupBox("Top Processes", dashboard);
+    auto *processLayout = new QVBoxLayout(processBox);
+    processList_ = new QPlainTextEdit(processBox);
+    processList_->setReadOnly(true);
+    processList_->setMinimumHeight(180);
+    processLayout->addWidget(processList_);
 
     dashLayout->addWidget(metricsBox);
+    dashLayout->addWidget(processBox);
     dashLayout->addStretch(1);
     tabs_->addTab(dashboard, "Dashboard");
 
@@ -94,6 +120,30 @@ void MainWindow::buildUi() {
 
     tabs_->addTab(packages, "Packages");
 
+    // --- Settings Tab ---
+    auto *settings = new QWidget(tabs_);
+    auto *settingsLayout = new QVBoxLayout(settings);
+    auto *settingsBox = new QGroupBox("Preferences", settings);
+    auto *settingsForm = new QFormLayout(settingsBox);
+
+    cliPathInput_ = new QLineEdit(settingsBox);
+    cliPathInput_->setPlaceholderText("/usr/bin/arch-manager");
+    refreshIntervalInput_ = new QSpinBox(settingsBox);
+    refreshIntervalInput_->setRange(5, 600);
+    refreshIntervalInput_->setValue(30);
+    autoRefreshCheck_ = new QCheckBox("Auto refresh metrics", settingsBox);
+    autoRefreshCheck_->setChecked(true);
+
+    settingsForm->addRow("CLI Path", cliPathInput_);
+    settingsForm->addRow("Refresh interval (sec)", refreshIntervalInput_);
+    settingsForm->addRow("", autoRefreshCheck_);
+
+    auto *applyButton = new QPushButton("Apply Settings", settingsBox);
+    settingsLayout->addWidget(settingsBox);
+    settingsLayout->addWidget(applyButton);
+    settingsLayout->addStretch(1);
+    tabs_->addTab(settings, "Settings");
+
     // --- Console Section ---
     auto *consoleBox = new QGroupBox("Console", central);
     auto *consoleLayout = new QVBoxLayout(consoleBox);
@@ -126,13 +176,14 @@ void MainWindow::buildUi() {
     connect(proc_, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &MainWindow::processFinished);
 
-    connect(metricsProc_, &QProcess::readyReadStandardOutput, this, &MainWindow::readStdout);
-    connect(metricsProc_, &QProcess::readyReadStandardError, this, &MainWindow::readStderr);
+    connect(metricsProc_, &QProcess::readyReadStandardOutput, this, &MainWindow::readMetricsStdout);
+    connect(metricsProc_, &QProcess::readyReadStandardError, this, &MainWindow::readMetricsStderr);
     connect(metricsProc_, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &MainWindow::metricsFinished);
 
     connect(refreshMetricsBtn, &QPushButton::clicked, this, &MainWindow::refreshMetrics);
     connect(clearBtn, &QPushButton::clicked, console_, &QPlainTextEdit::clear);
+    connect(applyButton, &QPushButton::clicked, this, &MainWindow::applySettings);
 
     // --- Example: Package Buttons ---
     connect(pkgInstallBtn, &QPushButton::clicked, this, [this]() {
@@ -151,10 +202,19 @@ void MainWindow::buildUi() {
         const QString pkg = pkgInput_->text().trimmed();
         if (!pkg.isEmpty()) runCli({"pacman", "info", pkg});
     });
+    connect(pkgUpdateBtn, &QPushButton::clicked, this, [this]() {
+        runCli({"pacman", "update"});
+    });
+    connect(pkgUpgradeBtn, &QPushButton::clicked, this, [this]() {
+        runCli({"pacman", "upgrade"});
+    });
+    connect(pkgCleanBtn, &QPushButton::clicked, this, [this]() {
+        runCli({"pacman", "clean"});
+    });
 
     // --- Auto-refresh metrics ---
     connect(refreshTimer_, &QTimer::timeout, this, &MainWindow::refreshMetrics);
-    refreshTimer_->start(30000); // default 30 sec
+    refreshTimer_->start(refreshIntervalInput_->value() * 1000);
 
     // --- Stylesheet ---
     setStyleSheet(R"(
@@ -214,6 +274,14 @@ void MainWindow::readStderr() {
     activeOutput_->appendPlainText(QString::fromUtf8(proc_->readAllStandardError()));
 }
 
+void MainWindow::readMetricsStdout() {
+    metricsStdout_.append(QString::fromUtf8(metricsProc_->readAllStandardOutput()));
+}
+
+void MainWindow::readMetricsStderr() {
+    console_->appendPlainText(QString::fromUtf8(metricsProc_->readAllStandardError()));
+}
+
 // --- Process finished ---
 void MainWindow::processFinished(int exitCode, QProcess::ExitStatus status) {
     Q_UNUSED(status)
@@ -227,14 +295,14 @@ void MainWindow::refreshMetrics() {
     if (metricsProc_->state() != QProcess::NotRunning) return;
 
     activeOutput_ = console_; // or dedicated metrics widget
+    metricsStdout_.clear();
     metricsProc_->start(cliPath(), {"metrics", "all"});
 }
 
 void MainWindow::metricsFinished(int exitCode, QProcess::ExitStatus status) {
     Q_UNUSED(exitCode)
     Q_UNUSED(status)
-    const QString text = QString::fromUtf8(metricsProc_->readAllStandardOutput());
-    parseMetricsOutput(text);
+    parseMetricsOutput(metricsStdout_);
 }
 
 // --- Metrics parsing ---
@@ -248,10 +316,20 @@ void MainWindow::parseMetricsOutput(const QString &text) {
 
         if (key == "RAM") ramLabel_->setText("RAM: " + value);
         else if (key == "CPU_TEMP") cpuTempLabel_->setText("CPU Temp: " + value);
+        else if (key == "CPU_USAGE") cpuUsageLabel_->setText("CPU Usage: " + value);
         else if (key == "GPU") gpuLabel_->setText("GPU: " + value);
+        else if (key == "GPU_TEMP") gpuTempLabel_->setText("GPU Temp: " + value);
+        else if (key == "GPU_USAGE") gpuUsageLabel_->setText("GPU Usage: " + value);
         else if (key == "BATTERY") batteryLabel_->setText("Battery: " + value);
+        else if (key == "BATTERY_HEALTH") batteryHealthLabel_->setText("Battery Health: " + value);
         else if (key == "LOAD") loadLabel_->setText("Load: " + value);
+        else if (key == "MEM_USAGE") memUsageLabel_->setText("Memory Usage: " + value);
+        else if (key == "NET_STATUS") netStatusLabel_->setText("Network: " + value);
+        else if (key == "NET_IP") netIpLabel_->setText("IP: " + value);
+        else if (key == "NET_TRAFFIC") netTrafficLabel_->setText("Traffic: " + value);
+        else if (key == "ORPHANS") orphansLabel_->setText("Orphans: " + value);
         else if (key == "UPTIME") uptimeLabel_->setText("Uptime: " + value);
+        else if (key == "PROCESSES") processList_->setPlainText(value.replace(" | ", "\n"));
     }
 }
 

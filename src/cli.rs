@@ -120,6 +120,7 @@ pub enum HealthCmd {
     Memory,
     Cpu,
     Kernel,
+    Network,
 }
 
 #[derive(Subcommand)]
@@ -127,9 +128,19 @@ pub enum MetricsCmd {
     All,
     Ram,
     CpuTemp,
+    CpuUsage,
     Gpu,
+    GpuTemp,
+    GpuUsage,
     Battery,
+    BatteryHealth,
     Load,
+    MemUsage,
+    NetStatus,
+    NetIp,
+    NetTraffic,
+    Orphans,
+    Processes,
     Uptime,
 }
 

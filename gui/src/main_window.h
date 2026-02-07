@@ -21,6 +21,8 @@ public:
 private slots:
     void readStdout();
     void readStderr();
+    void readMetricsStdout();
+    void readMetricsStderr();
     void processFinished(int exitCode, QProcess::ExitStatus status);
     void refreshMetrics();
     void metricsFinished(int exitCode, QProcess::ExitStatus status);
@@ -50,10 +52,20 @@ private:
 
     QLabel *ramLabel_ = nullptr;
     QLabel *cpuTempLabel_ = nullptr;
+    QLabel *cpuUsageLabel_ = nullptr;
     QLabel *gpuLabel_ = nullptr;
+    QLabel *gpuTempLabel_ = nullptr;
+    QLabel *gpuUsageLabel_ = nullptr;
     QLabel *batteryLabel_ = nullptr;
+    QLabel *batteryHealthLabel_ = nullptr;
     QLabel *loadLabel_ = nullptr;
+    QLabel *memUsageLabel_ = nullptr;
+    QLabel *netStatusLabel_ = nullptr;
+    QLabel *netIpLabel_ = nullptr;
+    QLabel *netTrafficLabel_ = nullptr;
+    QLabel *orphansLabel_ = nullptr;
     QLabel *uptimeLabel_ = nullptr;
+    QPlainTextEdit *processList_ = nullptr;
 
     QLineEdit *cliPathInput_ = nullptr;
     QSpinBox *refreshIntervalInput_ = nullptr;
@@ -62,4 +74,5 @@ private:
     QProcess *proc_ = nullptr;
     QProcess *metricsProc_ = nullptr;
     QTimer *refreshTimer_ = nullptr;
+    QString metricsStdout_;
 };
